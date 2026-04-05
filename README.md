@@ -2,6 +2,8 @@
 
 English | [简体中文](./README.zh-CN.md)
 
+ChatGPT Minimal implements core ChatGPT features with a minimal codebase. Built with Next.js. Clean code, easy to extend.
+
 ## Demo
 
 Try the [ChatGPT Minimal Demo Site](https://chatgpt-minimal.vercel.app).
@@ -13,28 +15,26 @@ Try the [ChatGPT Minimal Demo Site](https://chatgpt-minimal.vercel.app).
 
 ## Features
 
-ChatGPT Minimal is a clean, minimal codebase that implements core ChatGPT features with Next.js. Supports OpenAI, Azure OpenAI, and any OpenAI-compatible provider (DeepSeek, Ollama, etc.).
-
 **What this project includes:**
 
 - **Real-time streaming chat** with Server-Sent Events
 - **Text + image chat** (image upload and paste)
 - **Web search integration** (with source citations when supported by provider/model)
 - **Markdown rendering** with syntax highlighting
-- **OpenAI, Azure OpenAI, and OpenAI-compatible providers**
+- **Supports OpenAI, Azure OpenAI, and OpenAI-compatible providers**
 - **Light/Dark mode toggle**
 
-Looking for a full-featured ChatGPT clone? [ChatGPT Lite](https://github.com/blrchen/chatgpt-lite) extends this project with:
+Looking for a more complete version? [ChatGPT Lite](https://github.com/blrchen/chatgpt-lite) builds on this project's codebase and adds:
 
 - Persona system with custom system prompts
 - Multi-conversation management
 - File attachments (PDF, XLSX/CSV, text files)
 - Voice input
-- 40+ built-in themes
+- 40+ UI themes
 
 ## Deployment
 
-Refer to [Environment Variables](#environment-variables) before deployment.
+For required environment variables, see [Environment Variables](#environment-variables).
 
 ### Deploy to Vercel
 
@@ -80,7 +80,7 @@ docker run -d -p 3000:3000 \
 | Name                | Required | Description                                                                                       | Default Value            |
 | ------------------- | -------- | ------------------------------------------------------------------------------------------------- | ------------------------ |
 | OPENAI_API_KEY      | Yes      | API key from [OpenAI Platform](https://platform.openai.com/account/api-keys).                   | -                        |
-| OPENAI_API_BASE_URL | No       | Base URL for OpenAI-compatible endpoints. If it does not end with `/v1`, the app will append it. | `https://api.openai.com/v1` |
+| OPENAI_API_BASE_URL | No       | Base URL for OpenAI-compatible endpoints. If it does not end with `/v1`, the app will append it. | `https://api.openai.com` |
 | OPENAI_MODEL        | No       | Model name for OpenAI mode.                                                                       | `gpt-4o-mini`            |
 
 ### Azure OpenAI
@@ -90,11 +90,6 @@ docker run -d -p 3000:3000 \
 | AZURE_OPENAI_RESOURCE_NAME | Yes      | Azure OpenAI resource name (for example `my-openai-resource`). |
 | AZURE_OPENAI_API_KEY       | Yes      | Azure OpenAI API key.                               |
 | AZURE_OPENAI_DEPLOYMENT    | Yes      | Azure OpenAI deployment name (not the model name).  |
-
-### Provider Selection Notes
-
-- If Azure and OpenAI variables are both configured, **Azure is used first**.
-- Web search requires model/provider tool support. When unavailable, the app automatically falls back to regular chat.
 
 ## Contribution
 
