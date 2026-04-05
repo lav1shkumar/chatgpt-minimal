@@ -6,91 +6,95 @@
 
 访问 [ChatGPT Minimal 演示网站](https://chatgpt-minimal.vercel.app)
 
-## 功能
+<p>
+  <img src="./docs/images/demo.jpg" alt="ChatGPT Minimal 浅色主题" width="49%">
+  <img src="./docs/images/demo-dark.jpg" alt="ChatGPT Minimal 深色主题" width="49%">
+</p>
 
-ChatGPT Minimal 是一个简单的聊天机器人，使用 Next.js 和 OpenAI Streaming API 为 GPT-3.5 模型创建。它支持 OpenAI 和 Azure OpenAI 帐户。
+## 功能介绍
 
-组件：
+ChatGPT Minimal 是一个代码简洁、结构清晰的 Next.js 项目，实现了 ChatGPT 核心功能，支持 OpenAI、Azure OpenAI 及任何 OpenAI 兼容 API（DeepSeek、Ollama 等）。
 
-- Next.js v13
-- OpenAI Streaming API（GPT-3.5 模型，gpt-3.5-turbo）
-- API 路由
-- 基于 React 和 Ant Design 的聊天机器人用户界面
+**本项目包含：**
 
-![演示](./docs/images/demo.jpg)
+- **实时流式聊天**（Server-Sent Events）
+- **文本 + 图片聊天**（支持图片上传与粘贴）
+- **联网搜索**（在模型支持时显示来源引用）
+- **Markdown 渲染**（含代码高亮）
+- **支持 OpenAI、Azure OpenAI 及 OpenAI 兼容 API 提供商**
+- **深色/浅色模式**
 
-如需完整功能的 ChatGPT UI代码库，请访问 [ChatGPT Lite](https://github.com/blrchen/chatgpt-lite)。
+如果你需要更完整的 ChatGPT 体验，可以看看 [ChatGPT Lite](https://github.com/blrchen/chatgpt-lite)，它额外提供了：
 
-## 前提条件
-
-需要OpenAI账户或Azure OpenAI账户。
+- 角色系统与自定义系统提示词
+- 多会话管理
+- 文件附件（PDF、XLSX/CSV、文本文件）
+- 语音输入
+- 40+ 内置主题
 
 ## 部署
 
-参考[环境变量](#环境变量)了解所需环境变量。
+部署前请先阅读 [环境变量](#环境变量) 章节。
 
-### 在Vercel上部署
+### 部署到 Vercel
 
-点击下方按钮部署到Vercel：
-[![使用Vercel部署](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fblrchen%2Fchatgpt-minimal&project-name=chatgpt-minimal&framework=nextjs&repository-name=chatgpt-minimal)
+[![使用 Vercel 部署](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fblrchen%2Fchatgpt-minimal&project-name=chatgpt-minimal&framework=nextjs&repository-name=chatgpt-minimal)
 
-### 使用Docker部署
+### 使用 Docker 部署
 
-OpenAI账户用户：
+OpenAI 账户：
 
-```
+```bash
 docker run -d -p 3000:3000 \
-   -e OPENAI_API_KEY="<REPLACE-ME>" \
-   blrchen/chatgpt-minimal
+  -e OPENAI_API_KEY="<你的_OPENAI_API_KEY>" \
+  -e OPENAI_MODEL="gpt-4o-mini" \
+  blrchen/chatgpt-minimal
 ```
 
-Azure OpenAI账户用户：
+Azure OpenAI 账户：
 
-```
+```bash
 docker run -d -p 3000:3000 \
-   -e AZURE_OPENAI_API_BASE_URL="<REPLACE-ME>" \
-   -e AZURE_OPENAI_API_KEY="<REPLACE-ME>" \
-   -e AZURE_OPENAI_DEPLOYMENT="<REPLACE-ME>" \
-   blrchen/chatgpt-minimal
+  -e AZURE_OPENAI_RESOURCE_NAME="<你的_AZURE_RESOURCE_NAME>" \
+  -e AZURE_OPENAI_API_KEY="<你的_AZURE_OPENAI_API_KEY>" \
+  -e AZURE_OPENAI_DEPLOYMENT="<你的_AZURE_DEPLOYMENT_NAME>" \
+  blrchen/chatgpt-minimal
 ```
 
-## 开发
+## 本地开发
 
 ### 本地运行
 
-1. 安装NodeJS 20。
-2. 克隆仓库。
-3. 使用`npm install`安装依赖。
-4. 复制`.env.example`文件为`.env.local`并更新环境变量。
-5. 使用`npm run dev`启动应用。
-6. 在浏览器中访问`http://localhost:3000`。
-
-### 使用Docker本地运行
-
-1. 克隆仓库并导航至根目录。
-2. 在`docker-compose.yml`文件中更新`OPENAI_API_KEY`环境变量。
-3. 使用`docker-compose build .`构建应用。
-4. 运行`docker-compose up -d`启动。
+1. 安装 Node.js 22+。
+2. 克隆本仓库。
+3. 运行 `npm install` 安装依赖。
+4. 将 `.env.example` 复制为 `.env.local` 并填写环境变量。
+5. 运行 `npm run dev` 启动应用。
+6. 打开 [http://localhost:3000](http://localhost:3000)。
 
 ## 环境变量
 
-运行应用需要的环境变量：
+### OpenAI
 
-OpenAI账户环境变量：
+| 名称                | 必填 | 说明                                                                                          | 默认值                     |
+| ------------------- | ---- | --------------------------------------------------------------------------------------------- | -------------------------- |
+| OPENAI_API_KEY      | 是   | 从 [OpenAI Platform](https://platform.openai.com/account/api-keys) 获取的 API Key。          | -                          |
+| OPENAI_API_BASE_URL | 否   | OpenAI 兼容 API 的 Base URL。若未以 `/v1` 结尾，会自动补上。                                  | `https://api.openai.com/v1` |
+| OPENAI_MODEL        | 否   | OpenAI 模式下使用的模型名称。                                                                  | `gpt-4o-mini`              |
 
-| 名称                | 描述                                                                               | 默认值                   |
-| ------------------- | ---------------------------------------------------------------------------------- | ------------------------ |
-| OPENAI_API_BASE_URL | 如需为`api.openai.com`使用反向代理，请使用此变量。                                 | `https://api.openai.com` |
-| OPENAI_API_KEY      | 从[OpenAI API网站](https://platform.openai.com/account/api-keys)获取的密钥字符串。 |
+### Azure OpenAI
 
-Azure OpenAI账户环境变量：
+| 名称                       | 必填 | 说明                                                |
+| -------------------------- | ---- | --------------------------------------------------- |
+| AZURE_OPENAI_RESOURCE_NAME | 是   | Azure OpenAI 资源名称（例如 `my-openai-resource`）。 |
+| AZURE_OPENAI_API_KEY       | 是   | Azure OpenAI API Key。                              |
+| AZURE_OPENAI_DEPLOYMENT    | 是   | Azure OpenAI 部署名称（不是模型名）。                |
 
-| 名称                      | 描述                                       |
-| ------------------------- | ------------------------------------------ |
-| AZURE_OPENAI_API_BASE_URL | 端点（如，https://xxx.openai.azure.com）。 |
-| AZURE_OPENAI_API_KEY      | 密钥                                       |
-| AZURE_OPENAI_DEPLOYMENT   | 模型部署名称                               |
+### 提供方选择说明
+
+- 当 Azure 与 OpenAI 的变量同时存在时，**优先使用 Azure**。
+- 联网搜索依赖模型能力。若不支持，会自动回退到普通聊天。
 
 ## 贡献
 
-欢迎提交各种大小的PR。
+欢迎提交各种规模的 PR。
