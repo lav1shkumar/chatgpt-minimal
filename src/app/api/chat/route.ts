@@ -30,10 +30,10 @@ const DATA_URL_PREFIX_REGEX = /^data:/i
 const GENERIC_STREAM_ERROR_MESSAGE = 'Something went wrong. Please try again.'
 const GENERIC_INTERNAL_ERROR_MESSAGE = 'Something went wrong'
 const STREAM_RESPONSE_HEADERS = {
-  'Content-Encoding': 'none',
+  'X-Accel-Buffering': 'no',
   'Cache-Control': 'no-cache, no-transform',
   Connection: 'keep-alive',
-  'Transfer-Encoding': 'chunked'
+  'Content-Type': 'text/plain; charset=utf-8'
 } as const
 
 type MessageLike = { role: 'user' | 'assistant' | 'system'; parts: unknown[] }
