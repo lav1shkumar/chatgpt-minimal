@@ -1,9 +1,30 @@
-import { type RefObject } from 'react'
+import { type RefObject, useLayoutEffect } from 'react'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 
+const MAX_VISIBLE_TEXTAREA_LINES = 10
 const TEXTAREA_CLASS_NAME =
-  'text-foreground w-full min-w-0 resize-none rounded-none border-0 bg-transparent text-base leading-relaxed break-words outline-none shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-52 min-h-6 overflow-y-auto [field-sizing:content] md:text-base'
+  'text-foreground w-full min-w-0 resize-none rounded-none border-0 bg-transparent text-base leading-relaxed break-words outline-none shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-6 overflow-y-hidden md:text-base'
+
+function getTextareaLineHeight(textarea: HTMLTextAreaElement): number {
+  const styles = window.getComputedStyle(textarea)
+  const lineHeight = Number.parseFloat(styles.lineHeight)
+
+  if (Number.isFinite(lineHeight)) {
+    return lineHeight
+  }
+
+  const fontSize = Number.parseFloat(styles.fontSize)
+  return Number.isFinite(fontSize) ? fontSize * 1.5 : 24
+}
+
+function getTextareaVerticalPadding(textarea: HTMLTextAreaElement): number {
+  const styles = window.getComputedStyle(textarea)
+  const paddingTop = Number.parseFloat(styles.paddingTop)
+  const paddingBottom = Number.parseFloat(styles.paddingBottom)
+
+  return (Number.isFinite(paddingTop) ? paddingTop : 0) + (Number.isFinite(paddingBottom) ? paddingBottom : 0)
+}
 
 interface ComposerTextareaProps {
   textAreaRef: RefObject<HTMLTextAreaElement | null>
@@ -38,6 +59,22 @@ export function ComposerTextarea({
   onKeyDown,
   onPaste
 }: ComposerTextareaProps): React.JSX.Element {
+  useLayoutEffect(() => {
+    const textarea = textAreaRef.current
+
+    if (!textarea) {
+      return
+    }
+
+    const maxHeight =
+      getTextareaLineHeight(textarea) * MAX_VISIBLE_TEXTAREA_LINES +
+      getTextareaVerticalPadding(textarea)
+
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+  }, [message, textAreaRef])
+
   return (
     <div className="relative flex min-h-11 min-w-0 flex-1 items-start px-4 pt-2 pb-1">
       <FieldGroup className="min-w-0 flex-1 gap-0">

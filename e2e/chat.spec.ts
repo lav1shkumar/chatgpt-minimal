@@ -22,6 +22,8 @@ const CODE_PROMPT = [
   'Include one JavaScript code block.'
 ].join('\n')
 
+const TWELVE_LINE_PROMPT = Array.from({ length: 12 }, (_, index) => `Line ${index + 1}`).join('\n')
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(({ keyPrefix, selectedModelKey }) => {
     localStorage.removeItem('THEME')
@@ -42,6 +44,35 @@ async function assertTableMarkdownResponse(page: Page): Promise<void> {
 async function assertCodeMarkdownResponse(page: Page): Promise<void> {
   await expect(page.locator('main h2').first()).toBeVisible({ timeout: 10_000 })
   await expect(page.locator('main pre code').first()).toBeVisible({ timeout: 10_000 })
+}
+
+async function getComposerTextareaMetrics(chat: ChatPage): Promise<{
+  height: number
+  maxTenLineHeight: number
+  overflowY: string
+}> {
+  return chat.input.evaluate((element) => {
+    const textarea = element as HTMLTextAreaElement
+    const styles = window.getComputedStyle(textarea)
+    const parsedLineHeight = Number.parseFloat(styles.lineHeight)
+    const parsedFontSize = Number.parseFloat(styles.fontSize)
+    const lineHeight = Number.isFinite(parsedLineHeight)
+      ? parsedLineHeight
+      : Number.isFinite(parsedFontSize)
+        ? parsedFontSize * 1.5
+        : 24
+    const paddingTop = Number.parseFloat(styles.paddingTop)
+    const paddingBottom = Number.parseFloat(styles.paddingBottom)
+    const verticalPadding =
+      (Number.isFinite(paddingTop) ? paddingTop : 0) +
+      (Number.isFinite(paddingBottom) ? paddingBottom : 0)
+
+    return {
+      height: textarea.getBoundingClientRect().height,
+      maxTenLineHeight: lineHeight * 10 + verticalPadding,
+      overflowY: styles.overflowY
+    }
+  })
 }
 
 test('D1 — Dark/Light mode toggle (Desktop)', async ({ page, isMobile }) => {
@@ -83,6 +114,25 @@ test('D2a — Model selector persists selected model (Desktop)', async ({ page, 
 
   await chat.openModelSelector()
   await expect(chat.modelOption('GPT-5.4 Pro')).toHaveAttribute('data-state', 'checked')
+})
+
+test('D2b — Chat composer expands up to ten lines (Desktop)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop-only test.')
+  const chat = new ChatPage(page)
+
+  await chat.goto()
+
+  const initialMetrics = await getComposerTextareaMetrics(chat)
+  await chat.fillMessage(TWELVE_LINE_PROMPT)
+  await expect(chat.sendButton).toBeEnabled()
+
+  await expect.poll(async () => (await getComposerTextareaMetrics(chat)).height).toBeGreaterThan(
+    initialMetrics.height
+  )
+
+  const expandedMetrics = await getComposerTextareaMetrics(chat)
+  expect(expandedMetrics.height).toBeLessThanOrEqual(Math.ceil(expandedMetrics.maxTenLineHeight))
+  expect(expandedMetrics.overflowY).toBe('auto')
 })
 
 test('D2 — Chat composer and render table (Desktop)', async ({ page, isMobile }) => {

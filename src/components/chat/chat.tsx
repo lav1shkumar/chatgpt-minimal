@@ -10,7 +10,7 @@ import { isMobileViewport } from '@/lib/viewport'
 import { StickToBottom } from 'use-stick-to-bottom'
 
 const SINGLE_CHAT_ID = 'chat-minimal-session'
-const CHAT_COLUMN_MAX_WIDTH = 'max-w-[60rem]'
+const CHAT_COLUMN_MAX_WIDTH = 'max-w-[70rem]'
 const SAFE_AREA_HORIZONTAL_PADDING =
   'pr-[max(env(safe-area-inset-right),1rem)] pl-[max(env(safe-area-inset-left),1rem)] md:pr-[max(env(safe-area-inset-right),1.5rem)] md:pl-[max(env(safe-area-inset-left),1.5rem)] lg:pr-[max(env(safe-area-inset-right),2rem)] lg:pl-[max(env(safe-area-inset-left),2rem)]'
 const CHAT_COLUMN_CLASS = `@container/chat mx-auto w-full ${CHAT_COLUMN_MAX_WIDTH} ${SAFE_AREA_HORIZONTAL_PADDING}`
@@ -36,7 +36,7 @@ type ChatViewProps = {
 function EmptyChatView({ composerRef }: ChatViewProps): React.JSX.Element {
   return (
     <div className="bg-background text-foreground flex min-h-0 flex-1 flex-col items-center justify-center pr-[max(env(safe-area-inset-right),1rem)] pl-[max(env(safe-area-inset-left),1rem)]">
-      <div className="relative flex w-full max-w-2xl -translate-y-6 flex-col gap-10 text-center">
+      <div className="relative flex w-full max-w-3xl -translate-y-6 flex-col gap-10 text-center">
         <div className="flex flex-col gap-5">
           <h1 className="text-foreground text-3xl font-medium tracking-tight text-balance md:text-4xl lg:text-5xl">
             How can I help?
