@@ -15,7 +15,7 @@ function isValidTheme(value?: string | null): value is ThemeMode {
 }
 
 const DEFAULT_THEME_ENV = process.env.NEXT_PUBLIC_DEFAULT_THEME
-const DEFAULT_THEME_MODE: ThemeMode = isValidTheme(DEFAULT_THEME_ENV) ? DEFAULT_THEME_ENV : 'light'
+const DEFAULT_THEME_MODE: ThemeMode = isValidTheme(DEFAULT_THEME_ENV) ? DEFAULT_THEME_ENV : 'dark'
 const FALLBACK_THEME_COLOR = '#fcfbfa'
 let cachedThemeColorMetas: HTMLMetaElement[] = []
 let lastAppliedThemeColor: string | null = null

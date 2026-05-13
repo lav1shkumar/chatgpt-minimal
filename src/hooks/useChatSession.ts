@@ -9,11 +9,14 @@ import {
   type SetStateAction
 } from 'react'
 import { buildUserMessageParts, type ChatComposerPayload } from '@/lib/chat-attachments'
+import { getItem, setItem } from '@/lib/client-storage'
 import { readPersistedMessages, writePersistedMessages } from '@/lib/chat-persistence'
 import { createChatTransport } from '@/lib/chat-transport'
 import { getTextFromParts, isStreamingStatus, type ChatStreamPhase } from '@/lib/chat-utils'
 import { generateId } from '@/lib/id'
 import type { ChatMessage } from '@/lib/types'
+import { DEFAULT_AI_MODEL, isAIModelValue, type AIModelValue } from '@/services/ai-models'
+import { CACHE_KEY } from '@/services/constant'
 import { useChat, type UseChatHelpers } from '@ai-sdk/react'
 
 // 32ms throttles stream-driven state updates to ~31fps, which is below 60fps but
@@ -31,7 +34,9 @@ interface UseChatSessionReturn {
   isLoading: boolean
   streamError: string | null
   composerError: string | null
+  selectedModel: AIModelValue
   setComposerError: Dispatch<SetStateAction<string | null>>
+  setSelectedModel: (model: AIModelValue) => void
   handleSend: (payload: ChatComposerPayload) => Promise<boolean>
   handleStop: () => void
   handleClearMessages: () => void
@@ -50,6 +55,7 @@ type StreamPhaseParams = {
 type SendUserMessageParams = {
   chatId: string
   payload: ChatComposerPayload
+  selectedModel: AIModelValue
   isLoading: boolean
   sendMessage: ChatSendMessage
   setComposerError: Dispatch<SetStateAction<string | null>>
@@ -58,6 +64,11 @@ type SendUserMessageParams = {
 
 type SessionCommitOptions = {
   trimTrailingAssistant?: boolean
+}
+
+function readSelectedModel(): AIModelValue {
+  const persistedModel = getItem(CACHE_KEY.SELECTED_AI_MODEL)
+  return isAIModelValue(persistedModel) ? persistedModel : DEFAULT_AI_MODEL.value
 }
 
 function dropTrailingEmptyAssistantMessages(conversation: ChatMessage[]): ChatMessage[] {
@@ -184,6 +195,7 @@ function deriveStreamPhase({
 async function sendUserMessage({
   chatId,
   payload,
+  selectedModel,
   isLoading,
   sendMessage,
   setComposerError,
@@ -215,7 +227,7 @@ async function sendUserMessage({
     commitConversation(chatId, [...persistedMessages, userMessage])
 
     await sendMessage(userMessage, {
-      body: { prompt: DEFAULT_SYSTEM_PROMPT }
+      body: { prompt: DEFAULT_SYSTEM_PROMPT, model: selectedModel }
     })
     return true
   } catch (err) {
@@ -232,7 +244,13 @@ export function useChatSession(chatId: string): UseChatSessionReturn {
   const [composerError, setComposerError] = useState<string | null>(null)
   const [dismissedError, setDismissedError] = useState<Error | null>(null)
   const [hasPendingToolCall, setHasPendingToolCall] = useState(false)
+  const [selectedModel, setSelectedModelState] = useState<AIModelValue>(readSelectedModel)
   const [transport] = useState(createChatTransport)
+
+  const setSelectedModel = useCallback((model: AIModelValue) => {
+    setSelectedModelState(model)
+    setItem(CACHE_KEY.SELECTED_AI_MODEL, model)
+  }, [])
 
   const commitMessages = useCallback(
     (conversation: ChatMessage[]) => {
@@ -305,13 +323,14 @@ export function useChatSession(chatId: string): UseChatSessionReturn {
       return sendUserMessage({
         chatId,
         payload,
+        selectedModel,
         isLoading,
         sendMessage,
         setComposerError,
         setHasPendingToolCall
       })
     },
-    [chatId, isLoading, sendMessage, setComposerError]
+    [chatId, isLoading, selectedModel, sendMessage, setComposerError]
   )
 
   const handleStop = useCallback(() => {
@@ -339,7 +358,9 @@ export function useChatSession(chatId: string): UseChatSessionReturn {
     isLoading,
     streamError,
     composerError,
+    selectedModel,
     setComposerError,
+    setSelectedModel,
     handleSend,
     handleStop,
     handleClearMessages,

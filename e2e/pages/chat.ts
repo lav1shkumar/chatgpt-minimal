@@ -5,6 +5,7 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import { CACHE_KEY } from '../../src/services/constant'
 
 export const CHAT_STORAGE_KEY_PREFIX = CACHE_KEY.chatMessages('')
+export const SELECTED_MODEL_STORAGE_KEY = CACHE_KEY.SELECTED_AI_MODEL
 
 const SCREENSHOT_DIR = path.resolve(process.cwd(), '_generated/screenshots')
 
@@ -30,6 +31,7 @@ export class ChatPage {
   readonly sendButton: Locator
   readonly stopButton: Locator
   readonly fileInput: Locator
+  readonly modelSelectorButton: Locator
   readonly themeToggleButton: Locator
 
   constructor(page: Page) {
@@ -39,6 +41,7 @@ export class ChatPage {
     this.sendButton = page.getByRole('button', { name: /send message/i })
     this.stopButton = page.getByRole('button', { name: /stop generating/i })
     this.fileInput = page.locator('input[type="file"][name="attachments"]')
+    this.modelSelectorButton = page.getByRole('button', { name: /select model/i })
     this.themeToggleButton = page.getByRole('button', { name: /Switch to (Dark|Light) Theme/ })
   }
 
@@ -76,6 +79,23 @@ export class ChatPage {
 
   async send(): Promise<void> {
     await this.sendButton.click()
+  }
+
+  modelOption(modelName: string): Locator {
+    return this.page.getByRole('radio', { name: modelName, exact: true })
+  }
+
+  async openModelSelector(): Promise<void> {
+    await this.modelSelectorButton.click()
+  }
+
+  async selectModel(modelName: string): Promise<void> {
+    await this.openModelSelector()
+    await this.modelOption(modelName).click()
+  }
+
+  async expectSelectedModel(modelName: string): Promise<void> {
+    await expect(this.modelSelectorButton).toContainText(modelName)
   }
 
   async uploadImage(filePath: string): Promise<void> {

@@ -10,6 +10,7 @@ import {
 import { type ChatComposerPayload } from '@/lib/chat-attachments'
 import { type ChatStreamPhase, type ChatStreamStatus } from '@/lib/chat-utils'
 import type { ChatMessage } from '@/lib/types'
+import type { AIModelValue } from '@/services/ai-models'
 
 type ChatMessagesContextValue = {
   messages: ChatMessage[]
@@ -22,7 +23,9 @@ type ChatMessagesContextValue = {
 type ChatComposerContextValue = {
   isSending: boolean
   composerError: string | null
+  selectedModel: AIModelValue
   setComposerError: Dispatch<SetStateAction<string | null>>
+  setSelectedModel: (model: AIModelValue) => void
   onClear: () => void
   onSend: (payload: ChatComposerPayload) => Promise<boolean> | boolean
   onStop: () => void
@@ -52,7 +55,9 @@ export function ChatSessionProvider({
   onDismissError,
   isSending,
   composerError,
+  selectedModel,
   setComposerError,
+  setSelectedModel,
   onClear,
   onSend,
   onStop,
@@ -73,12 +78,23 @@ export function ChatSessionProvider({
     () => ({
       isSending,
       composerError,
+      selectedModel,
       setComposerError,
+      setSelectedModel,
       onClear,
       onSend,
       onStop
     }),
-    [isSending, composerError, setComposerError, onClear, onSend, onStop]
+    [
+      isSending,
+      composerError,
+      selectedModel,
+      setComposerError,
+      setSelectedModel,
+      onClear,
+      onSend,
+      onStop
+    ]
   )
 
   return (

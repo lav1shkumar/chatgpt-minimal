@@ -338,7 +338,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     const modelMessages = await buildModelMessages(parsed.prompt, parsed.messages)
     const result = createProviderStream({
-      modelConfig: getModel(),
+      modelConfig: getModel(parsed.model),
       messages: modelMessages,
       abortSignal: req.signal
     })

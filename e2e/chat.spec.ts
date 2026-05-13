@@ -1,7 +1,12 @@
 import path from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
-import { CHAT_STORAGE_KEY_PREFIX, ChatPage, getNextThemeLabel } from './pages/chat'
+import {
+  CHAT_STORAGE_KEY_PREFIX,
+  ChatPage,
+  SELECTED_MODEL_STORAGE_KEY,
+  getNextThemeLabel
+} from './pages/chat'
 
 const TEST_IMAGE_PATH = path.resolve(process.cwd(), 'docs/images/demo.jpg')
 
@@ -18,14 +23,15 @@ const CODE_PROMPT = [
 ].join('\n')
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript((keyPrefix: string) => {
+  await page.addInitScript(({ keyPrefix, selectedModelKey }) => {
     localStorage.removeItem('THEME')
+    localStorage.removeItem(selectedModelKey)
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith(keyPrefix)) {
         localStorage.removeItem(key)
       }
     }
-  }, CHAT_STORAGE_KEY_PREFIX)
+  }, { keyPrefix: CHAT_STORAGE_KEY_PREFIX, selectedModelKey: SELECTED_MODEL_STORAGE_KEY })
 })
 
 async function assertTableMarkdownResponse(page: Page): Promise<void> {
@@ -59,6 +65,24 @@ test('D1 — Dark/Light mode toggle (Desktop)', async ({ page, isMobile }) => {
   await expect(chat.themeToggleButton).toHaveAttribute('aria-label', labelAfterSecondToggle)
   await expect.poll(() => chat.isDarkTheme()).toBe(initialThemeIsDark)
   await chat.screenshot('D1-restored-mode.png')
+})
+
+test('D2a — Model selector persists selected model (Desktop)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop-only test.')
+  const chat = new ChatPage(page)
+
+  await chat.goto()
+  await chat.expectSelectedModel('GPT-5.5')
+
+  await chat.selectModel('GPT-5.4 Pro')
+  await chat.expectSelectedModel('GPT-5.4 Pro')
+
+  await page.reload()
+  await expect(chat.input).toBeVisible()
+  await chat.expectSelectedModel('GPT-5.4 Pro')
+
+  await chat.openModelSelector()
+  await expect(chat.modelOption('GPT-5.4 Pro')).toHaveAttribute('data-state', 'checked')
 })
 
 test('D2 — Chat composer and render table (Desktop)', async ({ page, isMobile }) => {

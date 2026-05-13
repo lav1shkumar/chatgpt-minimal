@@ -92,7 +92,9 @@ function Chat(): React.JSX.Element {
     isLoading,
     streamError,
     composerError,
+    selectedModel,
     setComposerError,
+    setSelectedModel,
     handleSend,
     handleStop,
     handleClearMessages,
@@ -115,7 +117,9 @@ function Chat(): React.JSX.Element {
       onDismissError={handleDismissError}
       isSending={isLoading}
       composerError={composerError}
+      selectedModel={selectedModel}
       setComposerError={setComposerError}
+      setSelectedModel={setSelectedModel}
       onClear={handleClearMessages}
       onStop={handleStop}
       onSend={handleSend}

@@ -35,8 +35,16 @@ function writeShouldConfirmClearHistory(shouldConfirm: boolean): void {
 
 const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
   function ChatComposer({ showClear }, ref): React.JSX.Element {
-    const { isSending, composerError, setComposerError, onClear, onSend, onStop } =
-      useChatComposerContext()
+    const {
+      isSending,
+      composerError,
+      selectedModel,
+      setComposerError,
+      setSelectedModel,
+      onClear,
+      onSend,
+      onStop
+    } = useChatComposerContext()
 
     const [message, setMessage] = useState('')
     const [isComposerFocused, setIsComposerFocused] = useState(false)
@@ -233,7 +241,9 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
               canSend={canSend}
               showClear={showClear}
               fileInputRef={fileInputRef}
+              selectedModel={selectedModel}
               onFileUpload={handleFileUpload}
+              onModelChange={setSelectedModel}
               onClear={handleClear}
               onSend={handleSubmit}
               onStop={onStop}

@@ -2,14 +2,19 @@ import { type RefObject } from 'react'
 import { AppButton, AppIconButton } from '@/components/common/app-button'
 import { ButtonWithTooltip } from '@/components/common/button-with-tooltip'
 import { ATTACHMENTS_ACCEPT } from '@/lib/chat-attachments'
+import { type AIModelValue } from '@/services/ai-models'
 import { ArrowUp, Paperclip, Square, Trash2 } from 'lucide-react'
+
+import { ModelSelector } from './model-selector'
 
 interface ComposerToolbarProps {
   isSending: boolean
   canSend: boolean
   showClear: boolean
+  selectedModel: AIModelValue
   fileInputRef: RefObject<HTMLInputElement | null>
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onModelChange: (model: AIModelValue) => void
   onClear: () => void
   onSend: (e: React.SyntheticEvent) => void
   onStop: () => void
@@ -19,8 +24,10 @@ export function ComposerToolbar({
   isSending,
   canSend,
   showClear,
+  selectedModel,
   fileInputRef,
   onFileUpload,
+  onModelChange,
   onClear,
   onSend,
   onStop
@@ -49,6 +56,11 @@ export function ComposerToolbar({
             <Paperclip aria-hidden="true" />
           </AppIconButton>
         </ButtonWithTooltip>
+        <ModelSelector
+          selectedModel={selectedModel}
+          disabled={isSending}
+          onModelChange={onModelChange}
+        />
         {showClear && (
           <ButtonWithTooltip label="Clear conversation history">
             <AppButton
