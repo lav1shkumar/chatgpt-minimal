@@ -24,7 +24,7 @@ export function Header(): React.JSX.Element {
               asChild
             >
               <a
-                href="https://github.com/blrchen/chatgpt-minimal"
+                href="https://github.com/lav1shkumar/chatgpt-minimal"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Open ChatGPT Minimal on GitHub"
