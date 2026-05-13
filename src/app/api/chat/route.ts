@@ -20,12 +20,21 @@ import {
 
 import { chatRequestSchema, type ChatRequest } from './schema'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 // 4 * ceil(10 MiB / 3) = 13,981,016. Base64 expands bytes by ~4/3 and rounds up to 4-char blocks.
 const MAX_IMAGE_BASE64_LENGTH = 4 * Math.ceil(MAX_IMAGE_SIZE / 3)
 const DATA_URL_REGEX = /^data:([^;]+);base64,(.+)$/i
 const DATA_URL_PREFIX_REGEX = /^data:/i
 const GENERIC_STREAM_ERROR_MESSAGE = 'Something went wrong. Please try again.'
 const GENERIC_INTERNAL_ERROR_MESSAGE = 'Something went wrong'
+const STREAM_RESPONSE_HEADERS = {
+  'Content-Encoding': 'none',
+  'Cache-Control': 'no-cache, no-transform',
+  Connection: 'keep-alive',
+  'Transfer-Encoding': 'chunked'
+} as const
 
 type MessageLike = { role: 'user' | 'assistant' | 'system'; parts: unknown[] }
 type ProviderToolLike = { inputSchema: unknown }
@@ -327,7 +336,8 @@ function createStreamResponse(providerPlan: ProviderStreamPlan): Response {
   })
 
   return createUIMessageStreamResponse({
-    stream
+    stream,
+    headers: STREAM_RESPONSE_HEADERS
   })
 }
 
