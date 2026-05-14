@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useSyncExternalStore, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore, type RefObject } from 'react'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { ChatSessionProvider } from '@/components/chat/chat-session-context'
 import { MessageList } from '@/components/chat/message-list'
 import { Separator } from '@/components/ui/separator'
 import { useChatSession } from '@/hooks/useChatSession'
+import type { ChatMessage } from '@/lib/types'
 import { isMobileViewport } from '@/lib/viewport'
 import { StickToBottom } from 'use-stick-to-bottom'
 
@@ -108,6 +109,10 @@ function Chat(): React.JSX.Element {
     }
   }, [])
 
+  const handleEditUserMessage = useCallback((message: ChatMessage) => {
+    composerRef.current?.startEdit(message)
+  }, [])
+
   return (
     <ChatSessionProvider
       messages={messages}
@@ -115,6 +120,7 @@ function Chat(): React.JSX.Element {
       streamPhase={streamPhase}
       error={streamError}
       onDismissError={handleDismissError}
+      onEditUserMessage={handleEditUserMessage}
       isSending={isLoading}
       composerError={composerError}
       selectedModel={selectedModel}

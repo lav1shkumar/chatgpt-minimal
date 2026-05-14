@@ -2,10 +2,19 @@
 
 import { forwardRef, memo, useCallback, useId, useImperativeHandle, useRef, useState } from 'react'
 import { useChatComposerContext } from '@/components/chat/chat-session-context'
+import { AppIconButton } from '@/components/common/app-button'
+import { ButtonWithTooltip } from '@/components/common/button-with-tooltip'
 import { ConfirmActionDialog } from '@/components/common/confirm-action-dialog'
 import { useFileAttachments } from '@/hooks/useFileAttachments'
+import {
+  createUploadedImage,
+  type UploadedImage
+} from '@/lib/chat-attachments'
 import { getItem, removeItem, setItem } from '@/lib/client-storage'
+import { getTextFromParts } from '@/lib/chat-utils'
+import type { ChatMessage } from '@/lib/types'
 import { CACHE_KEY } from '@/services/constant'
+import { X } from 'lucide-react'
 
 import { ComposerAttachments } from './composer/composer-attachments'
 import { ComposerError } from './composer/composer-error'
@@ -14,6 +23,7 @@ import { ComposerToolbar } from './composer/composer-toolbar'
 
 export interface ChatComposerHandle {
   focus: () => void
+  startEdit: (message: ChatMessage) => void
 }
 
 interface ChatComposerProps {
@@ -33,6 +43,33 @@ function writeShouldConfirmClearHistory(shouldConfirm: boolean): void {
   setItem(CACHE_KEY.CLEAR_HISTORY_CONFIRM, '0')
 }
 
+function getFilePartName(part: ChatMessage['parts'][number]): string | undefined {
+  if (!('filename' in part) || typeof part.filename !== 'string') {
+    return undefined
+  }
+
+  return part.filename
+}
+
+function getEditableUploadedImages(message: ChatMessage): UploadedImage[] {
+  return message.parts.flatMap((part) => {
+    if (
+      part.type !== 'file' ||
+      !part.mediaType.startsWith('image/') ||
+      typeof part.url !== 'string' ||
+      part.url.length === 0
+    ) {
+      return []
+    }
+
+    return createUploadedImage({
+      url: part.url,
+      mimeType: part.mediaType,
+      name: getFilePartName(part)
+    })
+  })
+}
+
 const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
   function ChatComposer({ showClear }, ref): React.JSX.Element {
     const {
@@ -47,6 +84,7 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
     } = useChatComposerContext()
 
     const [message, setMessage] = useState('')
+    const [editingMessageId, setEditingMessageId] = useState<string | undefined>(undefined)
     const [isComposerFocused, setIsComposerFocused] = useState(false)
     const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
     const [shouldConfirmClearHistory, setShouldConfirmClearHistory] = useState(
@@ -79,21 +117,46 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
     const hasContent = hasText || hasAttachments
     const canSend = !isSending && hasContent
 
+    const resetComposerState = useCallback(() => {
+      messageRef.current = ''
+      setMessage('')
+      setEditingMessageId(undefined)
+      resetAttachments()
+    }, [resetAttachments])
+
+    const startEdit = useCallback(
+      (messageToEdit: ChatMessage) => {
+        if (isSending || messageToEdit.role !== 'user') {
+          return
+        }
+
+        const text = getTextFromParts(messageToEdit.parts)
+        messageRef.current = text
+        setMessage(text)
+        setEditingMessageId(messageToEdit.id)
+        restoreAttachments(getEditableUploadedImages(messageToEdit))
+        setComposerError(null)
+        requestAnimationFrame(() => textAreaRef.current?.focus())
+      },
+      [isSending, restoreAttachments, setComposerError]
+    )
+
     useImperativeHandle(
       ref,
       () => ({
         focus: () => {
           textAreaRef.current?.focus()
-        }
+        },
+        startEdit
       }),
-      []
+      [startEdit]
     )
 
-    const resetComposerState = useCallback(() => {
-      messageRef.current = ''
-      setMessage('')
-      resetAttachments()
-    }, [resetAttachments])
+    const handleCancelEdit = useCallback(() => {
+      resetComposerState()
+      setComposerError(null)
+      textAreaRef.current?.focus()
+    }, [resetComposerState, setComposerError])
 
     const handleSubmit = useCallback(
       async (event: React.SyntheticEvent) => {
@@ -107,6 +170,7 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
 
         const draftMessage = message
         const draftImages = uploadedImages
+        const draftEditingMessageId = editingMessageId
 
         resetComposerState()
         setComposerError(null)
@@ -115,7 +179,8 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
         try {
           accepted = await onSend({
             text: input,
-            uploadedImages: draftImages
+            uploadedImages: draftImages,
+            editingMessageId: draftEditingMessageId
           })
         } catch (error) {
           console.error(error)
@@ -129,6 +194,7 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
           if (shouldRestoreDraft) {
             messageRef.current = draftMessage
             setMessage(draftMessage)
+            setEditingMessageId(draftEditingMessageId)
             restoreAttachments(draftImages)
             textAreaRef.current?.focus()
           }
@@ -138,6 +204,7 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
         hasCurrentAttachments,
         canSend,
         message,
+        editingMessageId,
         onSend,
         resetComposerState,
         restoreAttachments,
@@ -199,11 +266,31 @@ const ChatComposerComponent = forwardRef<ChatComposerHandle, ChatComposerProps>(
     )
 
     const showPlaceholder = !message && !isComposerFocused && !hasAttachments
+    const isEditing = Boolean(editingMessageId)
 
     return (
       <>
         <div className="relative">
           <div className="bg-card border-border/60 focus-within:border-primary/30 focus-within:ring-primary/20 has-[textarea[aria-invalid=true]]:border-destructive has-[textarea[aria-invalid=true]]:ring-destructive/20 flex flex-col rounded-2xl border shadow-md transition-[border-color,box-shadow] duration-200 ease-out focus-within:shadow-lg focus-within:ring-4 has-[textarea[aria-invalid=true]]:ring-2">
+            {isEditing && (
+              <div className="text-muted-foreground flex items-center justify-between gap-3 px-4 pt-3 text-sm">
+                <span className="font-medium">Editing message</span>
+                <ButtonWithTooltip label="Cancel edit">
+                  <AppIconButton
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    touch={false}
+                    mutedDisabled={false}
+                    className="hover:text-foreground size-8"
+                    onClick={handleCancelEdit}
+                    aria-label="Cancel editing message"
+                  >
+                    <X aria-hidden="true" />
+                  </AppIconButton>
+                </ButtonWithTooltip>
+              </div>
+            )}
             {hasAttachments && (
               <ComposerAttachments
                 uploadedImages={uploadedImages}

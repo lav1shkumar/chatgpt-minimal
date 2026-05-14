@@ -57,6 +57,7 @@ type SendUserMessageParams = {
   payload: ChatComposerPayload
   selectedModel: AIModelValue
   isLoading: boolean
+  messages: ChatMessage[]
   sendMessage: ChatSendMessage
   setComposerError: Dispatch<SetStateAction<string | null>>
   setHasPendingToolCall: Dispatch<SetStateAction<boolean>>
@@ -192,11 +193,21 @@ function deriveStreamPhase({
   return hasPendingToolCall ? 'tool-calling' : 'thinking'
 }
 
+function findEditableUserMessageIndex(messages: ChatMessage[], messageId: string): number {
+  const messageIndex = messages.findIndex((message) => message.id === messageId)
+  if (messageIndex === -1 || messages[messageIndex].role !== 'user') {
+    return -1
+  }
+
+  return messageIndex
+}
+
 async function sendUserMessage({
   chatId,
   payload,
   selectedModel,
   isLoading,
+  messages,
   sendMessage,
   setComposerError,
   setHasPendingToolCall
@@ -215,6 +226,33 @@ async function sendUserMessage({
   try {
     setComposerError(null)
     setHasPendingToolCall(false)
+
+    const editingMessageId = payload.editingMessageId
+    if (editingMessageId) {
+      const messageIndex = findEditableUserMessageIndex(messages, editingMessageId)
+
+      if (messageIndex === -1) {
+        setComposerError('Unable to edit that message. Please try again.')
+        return false
+      }
+
+      const userMessage: ChatMessage = {
+        ...messages[messageIndex],
+        createdAt: new Date(),
+        role: 'user',
+        parts
+      }
+
+      commitConversation(chatId, [...messages.slice(0, messageIndex), userMessage])
+
+      await sendMessage(
+        { ...userMessage, messageId: editingMessageId },
+        {
+          body: { prompt: DEFAULT_SYSTEM_PROMPT, model: selectedModel }
+        }
+      )
+      return true
+    }
 
     const userMessage: ChatMessage = {
       id: generateId(),
@@ -325,12 +363,13 @@ export function useChatSession(chatId: string): UseChatSessionReturn {
         payload,
         selectedModel,
         isLoading,
+        messages,
         sendMessage,
         setComposerError,
         setHasPendingToolCall
       })
     },
-    [chatId, isLoading, selectedModel, sendMessage, setComposerError]
+    [chatId, isLoading, messages, selectedModel, sendMessage, setComposerError]
   )
 
   const handleStop = useCallback(() => {

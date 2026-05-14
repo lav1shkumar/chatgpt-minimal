@@ -4,7 +4,8 @@ import { Message } from '@/components/chat/message'
 import { isStreamingStatus } from '@/lib/chat-utils'
 
 export function MessageList(): React.JSX.Element {
-  const { messages, streamStatus, streamPhase, error, onDismissError } = useChatMessagesContext()
+  const { messages, streamStatus, streamPhase, error, onDismissError, onEditUserMessage } =
+    useChatMessagesContext()
   const isStreaming = isStreamingStatus(streamStatus)
   const lastMessageIndex = messages.length - 1
   const lastAssistantIndex =
@@ -25,6 +26,8 @@ export function MessageList(): React.JSX.Element {
               message={item}
               isThinking={isLastStreaming}
               streamPhase={isLastStreaming ? streamPhase : undefined}
+              isEditDisabled={isStreaming}
+              onEditUserMessage={onEditUserMessage}
             />
           </div>
         )

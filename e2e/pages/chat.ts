@@ -33,6 +33,7 @@ export class ChatPage {
   readonly fileInput: Locator
   readonly modelSelectorButton: Locator
   readonly themeToggleButton: Locator
+  readonly cancelEditButton: Locator
 
   constructor(page: Page) {
     this.page = page
@@ -43,6 +44,7 @@ export class ChatPage {
     this.fileInput = page.locator('input[type="file"][name="attachments"]')
     this.modelSelectorButton = page.getByRole('button', { name: /select model/i })
     this.themeToggleButton = page.getByRole('button', { name: /Switch to (Dark|Light) Theme/ })
+    this.cancelEditButton = page.getByRole('button', { name: 'Cancel editing message' })
   }
 
   async goto(): Promise<void> {
@@ -79,6 +81,18 @@ export class ChatPage {
 
   async send(): Promise<void> {
     await this.sendButton.click()
+  }
+
+  sentMessageCopyButton(index = 0): Locator {
+    return this.page
+      .getByRole('button', {
+        name: /^(Copy sent message|Sent message copied to clipboard)$/
+      })
+      .nth(index)
+  }
+
+  editSentMessageButton(index = 0): Locator {
+    return this.page.getByRole('button', { name: 'Edit sent message' }).nth(index)
   }
 
   modelOption(modelName: string): Locator {

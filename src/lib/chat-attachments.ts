@@ -40,6 +40,7 @@ export function createUploadedImage(image: UploadedImageInput): UploadedImage {
 export interface ChatComposerPayload {
   text: string
   uploadedImages: UploadedImage[]
+  editingMessageId?: string
 }
 
 export function readFileAsDataUrl(file: File): Promise<string> {

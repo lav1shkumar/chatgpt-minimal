@@ -18,6 +18,7 @@ type ChatMessagesContextValue = {
   streamPhase: ChatStreamPhase
   error: string | null
   onDismissError: () => void
+  onEditUserMessage: (message: ChatMessage) => void
 }
 
 type ChatComposerContextValue = {
@@ -53,6 +54,7 @@ export function ChatSessionProvider({
   streamPhase,
   error,
   onDismissError,
+  onEditUserMessage,
   isSending,
   composerError,
   selectedModel,
@@ -69,9 +71,10 @@ export function ChatSessionProvider({
       streamStatus,
       streamPhase,
       error,
-      onDismissError
+      onDismissError,
+      onEditUserMessage
     }),
-    [messages, streamStatus, streamPhase, error, onDismissError]
+    [messages, streamStatus, streamPhase, error, onDismissError, onEditUserMessage]
   )
 
   const composerValue = useMemo<ChatComposerContextValue>(

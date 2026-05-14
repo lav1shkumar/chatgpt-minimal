@@ -16,7 +16,7 @@ import { useInViewport } from '@/hooks/useInViewport'
 import { getTextFromParts, type ChatStreamPhase } from '@/lib/chat-utils'
 import type { ChatMessage, ChatMessageSource } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { Check, Copy, Loader2, Search } from 'lucide-react'
+import { Check, Copy, Loader2, Pencil, Search } from 'lucide-react'
 
 import { getSourcesFromParts, stripTrailingSourceMarkdownLinks } from './message-sources'
 
@@ -24,6 +24,8 @@ interface MessageProps {
   message: ChatMessage
   isThinking?: boolean
   streamPhase?: ChatStreamPhase
+  isEditDisabled?: boolean
+  onEditUserMessage?: (message: ChatMessage) => void
 }
 
 type SourceUrlMap = Map<string, { index: number; source: ChatMessageSource }>
@@ -67,7 +69,99 @@ function StreamingCursor(): React.JSX.Element {
   )
 }
 
-function UserMessage({ message }: MessageProps): React.JSX.Element {
+function hasUsableImagePart(message: ChatMessage): boolean {
+  return message.parts.some(
+    (part) =>
+      part.type === 'file' &&
+      part.mediaType.startsWith('image/') &&
+      typeof part.url === 'string' &&
+      part.url.length > 0
+  )
+}
+
+interface UserMessageActionsProps {
+  canCopy: boolean
+  copied: boolean
+  canEdit: boolean
+  editDisabled: boolean
+  onCopy: () => void
+  onEdit: () => void
+}
+
+function UserMessageActions({
+  canCopy,
+  copied,
+  canEdit,
+  editDisabled,
+  onCopy,
+  onEdit
+}: UserMessageActionsProps): React.JSX.Element | null {
+  if (!canCopy && !canEdit) {
+    return null
+  }
+
+  return (
+    <div className="mt-1 flex items-center justify-end">
+      {canCopy && (
+        <>
+          <ButtonWithTooltip label={copied ? 'Copied' : 'Copy'}>
+            <AppIconButton
+              variant="ghost"
+              size="icon-sm"
+              touch={false}
+              mutedDisabled={false}
+              className={cn(
+                'text-muted-foreground size-11 transition-colors duration-200 md:size-7',
+                copied ? 'text-accent-foreground' : 'hover:text-foreground'
+              )}
+              disabled={copied}
+              onClick={onCopy}
+              aria-label={copied ? 'Sent message copied to clipboard' : 'Copy sent message'}
+            >
+              {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+            </AppIconButton>
+          </ButtonWithTooltip>
+          <CopyStatusAnnouncement copied={copied} message="Sent message copied to clipboard." />
+        </>
+      )}
+      {canEdit && (
+        <ButtonWithTooltip label={editDisabled ? 'Wait for response to finish' : 'Edit'}>
+          <AppIconButton
+            variant="ghost"
+            size="icon-sm"
+            touch={false}
+            mutedDisabled={false}
+            className="text-muted-foreground hover:text-foreground size-11 transition-colors duration-200 md:size-7"
+            disabled={editDisabled}
+            onClick={onEdit}
+            aria-label="Edit sent message"
+          >
+            <Pencil aria-hidden="true" />
+          </AppIconButton>
+        </ButtonWithTooltip>
+      )}
+    </div>
+  )
+}
+
+function UserMessage({
+  message,
+  isEditDisabled = false,
+  onEditUserMessage
+}: MessageProps): React.JSX.Element {
+  const { copy, copied } = useCopyToClipboard()
+  const text = useMemo(() => getTextFromParts(message.parts), [message.parts])
+  const canCopy = text.trim().length > 0
+  const canEdit = Boolean(onEditUserMessage && (canCopy || hasUsableImagePart(message)))
+
+  const handleCopy = useCallback(() => {
+    void copy(text)
+  }, [copy, text])
+
+  const handleEdit = useCallback(() => {
+    onEditUserMessage?.(message)
+  }, [message, onEditUserMessage])
+
   return (
     <div className="flex w-full justify-end">
       <div className="flex max-w-[92%] min-w-0 flex-col items-end md:max-w-[88%]">
@@ -76,6 +170,14 @@ function UserMessage({ message }: MessageProps): React.JSX.Element {
             {renderUserParts(message.parts)}
           </div>
         </div>
+        <UserMessageActions
+          canCopy={canCopy}
+          copied={copied}
+          canEdit={canEdit}
+          editDisabled={isEditDisabled}
+          onCopy={handleCopy}
+          onEdit={handleEdit}
+        />
       </div>
     </div>
   )
@@ -270,9 +372,21 @@ function AssistantMessage({ message, isThinking, streamPhase }: MessageProps): R
   )
 }
 
-function MessageComponent({ message, isThinking, streamPhase }: MessageProps): React.JSX.Element {
+function MessageComponent({
+  message,
+  isThinking,
+  streamPhase,
+  isEditDisabled,
+  onEditUserMessage
+}: MessageProps): React.JSX.Element {
   if (message.role === 'user') {
-    return <UserMessage message={message} />
+    return (
+      <UserMessage
+        message={message}
+        isEditDisabled={isEditDisabled}
+        onEditUserMessage={onEditUserMessage}
+      />
+    )
   }
 
   return <AssistantMessage message={message} isThinking={isThinking} streamPhase={streamPhase} />

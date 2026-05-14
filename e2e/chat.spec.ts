@@ -23,6 +23,9 @@ const CODE_PROMPT = [
 ].join('\n')
 
 const TWELVE_LINE_PROMPT = Array.from({ length: 12 }, (_, index) => `Line ${index + 1}`).join('\n')
+const ORIGINAL_EDIT_PROMPT = 'Original editable prompt for e2e.'
+const FOLLOWUP_EDIT_PROMPT = 'Follow-up prompt that should be removed after edit.'
+const EDITED_EDIT_PROMPT = 'Edited replacement prompt for e2e.'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(({ keyPrefix, selectedModelKey }) => {
@@ -205,6 +208,46 @@ test('D4 — Upload image attachment (Desktop)', async ({ page, isMobile }) => {
     timeout: 10_000
   })
   await chat.screenshot('D4-image-response.png')
+})
+
+test('D5 — Copy and edit sent message (Desktop)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop-only test.')
+  await page.context().grantPermissions(['clipboard-write'], { origin: 'http://localhost:3000' })
+  const chat = new ChatPage(page)
+
+  await chat.goto()
+  await chat.fillMessage(ORIGINAL_EDIT_PROMPT)
+  await chat.send()
+  await expect(page.getByText(ORIGINAL_EDIT_PROMPT, { exact: true })).toBeVisible()
+  await chat.waitForStreamingAndCompletion()
+
+  await expect(chat.sentMessageCopyButton()).toBeVisible()
+  await expect(chat.editSentMessageButton()).toBeEnabled()
+  await chat.sentMessageCopyButton().click()
+  await expect(page.getByRole('button', { name: 'Sent message copied to clipboard' })).toBeVisible()
+
+  await chat.editSentMessageButton().click()
+  await expect(chat.input).toHaveValue(ORIGINAL_EDIT_PROMPT)
+  await expect(chat.cancelEditButton).toBeVisible()
+  await chat.cancelEditButton.click()
+  await expect(chat.input).toHaveValue('')
+  await expect(page.getByText(ORIGINAL_EDIT_PROMPT, { exact: true })).toBeVisible()
+
+  await chat.fillMessage(FOLLOWUP_EDIT_PROMPT)
+  await chat.send()
+  await expect(page.getByText(FOLLOWUP_EDIT_PROMPT, { exact: true })).toBeVisible()
+  await chat.waitForStreamingAndCompletion()
+
+  await chat.editSentMessageButton().click()
+  await expect(chat.input).toHaveValue(ORIGINAL_EDIT_PROMPT)
+  await chat.fillMessage(EDITED_EDIT_PROMPT)
+  await chat.send()
+
+  await expect(page.getByText(EDITED_EDIT_PROMPT, { exact: true })).toBeVisible()
+  await expect(page.getByText(ORIGINAL_EDIT_PROMPT, { exact: true })).toBeHidden()
+  await expect(page.getByText(FOLLOWUP_EDIT_PROMPT, { exact: true })).toBeHidden()
+  await expect(chat.stopButton).toBeVisible({ timeout: 15_000 })
+  await chat.waitForStreamingAndCompletion()
 })
 
 test('M1 — Mobile layout (Mobile)', async ({ page, isMobile }) => {
