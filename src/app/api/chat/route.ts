@@ -66,6 +66,10 @@ function normalizeMediaType(value: unknown): string | undefined {
   return normalized.length > 0 ? normalized : undefined
 }
 
+function hasBlankFileUrl(value: string): boolean {
+  return value.trim().length === 0
+}
+
 function normalizeMessageParts(messages: MessageLike[]): MessageLike[] {
   return messages.map((msg) => {
     if (msg.role !== 'user') return msg
@@ -81,6 +85,11 @@ function normalizeMessageParts(messages: MessageLike[]): MessageLike[] {
 
       if (part.type !== 'file' || typeof part.url !== 'string') {
         normalizedParts.push(part)
+        continue
+      }
+
+      if (hasBlankFileUrl(part.url)) {
+        changed = true
         continue
       }
 
