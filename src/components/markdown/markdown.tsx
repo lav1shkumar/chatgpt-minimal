@@ -18,7 +18,9 @@ import type { Element, Nodes, Properties, Root } from 'hast'
 import { Check, Copy } from 'lucide-react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import type { PluggableList } from 'unified'
 
 const HIGHLIGHT_LANGUAGE_ALLOWLIST = new Set([
@@ -147,12 +149,185 @@ function rehypeNormalizeCodeLanguage(): (tree: Root) => void {
   }
 }
 
-const remarkPluginList: PluggableList = [remarkGfm]
+const remarkPluginList: PluggableList = [remarkGfm, [remarkMath, { singleDollarTextMath: false }]]
 
 const rehypePluginList: PluggableList = [
+  rehypeKatex,
   rehypeNormalizeCodeLanguage,
   [rehypeHighlight, { detect: false }]
 ]
+
+interface MarkdownSegment {
+  text: string
+  isCode: boolean
+}
+
+function findClosingDelimiter(source: string, delimiter: string, startIndex: number): number {
+  let cursor = startIndex
+
+  while (cursor < source.length) {
+    const closingIndex = source.indexOf(delimiter, cursor)
+    if (closingIndex === -1) return -1
+
+    if (source[closingIndex - 1] !== '\\') {
+      return closingIndex
+    }
+
+    cursor = closingIndex + delimiter.length
+  }
+
+  return -1
+}
+
+function normalizeTextMathSegment(segment: string): string {
+  let normalized = ''
+  let cursor = 0
+
+  while (cursor < segment.length) {
+    if (segment.startsWith('\\(', cursor)) {
+      const closingIndex = findClosingDelimiter(segment, '\\)', cursor + 2)
+
+      if (closingIndex !== -1) {
+        const mathSource = segment.slice(cursor + 2, closingIndex).trim()
+        normalized +=
+          mathSource.length > 0 ? `$$${mathSource}$$` : segment.slice(cursor, closingIndex + 2)
+        cursor = closingIndex + 2
+        continue
+      }
+    }
+
+    if (segment.startsWith('\\[', cursor)) {
+      const closingIndex = findClosingDelimiter(segment, '\\]', cursor + 2)
+
+      if (closingIndex !== -1) {
+        const mathSource = segment.slice(cursor + 2, closingIndex).trim()
+        normalized +=
+          mathSource.length > 0
+            ? `\n\n$$\n${mathSource}\n$$\n\n`
+            : segment.slice(cursor, closingIndex + 2)
+        cursor = closingIndex + 2
+        continue
+      }
+    }
+
+    if (segment.startsWith('$$', cursor)) {
+      const closingIndex = findClosingDelimiter(segment, '$$', cursor + 2)
+
+      if (closingIndex !== -1) {
+        const mathSource = segment.slice(cursor + 2, closingIndex).trim()
+        normalized +=
+          mathSource.length > 0
+            ? `\n\n$$\n${mathSource}\n$$\n\n`
+            : segment.slice(cursor, closingIndex + 2)
+        cursor = closingIndex + 2
+        continue
+      }
+    }
+
+    normalized += segment[cursor]
+    cursor += 1
+  }
+
+  return normalized
+}
+
+const CODE_PLACEHOLDER_PREFIX = '\uE000markdown-code-'
+const CODE_PLACEHOLDER_SUFFIX = '\uE001'
+const CODE_PLACEHOLDER_REGEX = /\uE000markdown-code-(\d+)\uE001/g
+
+function createCodePlaceholder(index: number): string {
+  return `${CODE_PLACEHOLDER_PREFIX}${index}${CODE_PLACEHOLDER_SUFFIX}`
+}
+
+function protectInlineCodeSegments(text: string, protectedSegments: string[]): string {
+  return text.replace(/(`+)([\s\S]*?)\1/g, (match: string) => {
+    const index = protectedSegments.push(match) - 1
+    return createCodePlaceholder(index)
+  })
+}
+
+function protectCodeSegments(source: string): MarkdownSegment[] {
+  const segments: MarkdownSegment[] = []
+  const lines = source.split(/(?<=\n)/)
+  let textBuffer = ''
+  let codeBuffer = ''
+  let inFencedCode = false
+  let fenceMarker: string | null = null
+  let fenceLength = 0
+
+  const flushText = (): void => {
+    if (textBuffer.length > 0) {
+      segments.push({ text: textBuffer, isCode: false })
+      textBuffer = ''
+    }
+  }
+
+  const flushCode = (): void => {
+    if (codeBuffer.length > 0) {
+      segments.push({ text: codeBuffer, isCode: true })
+      codeBuffer = ''
+    }
+  }
+
+  for (const line of lines) {
+    const fenceMatch = line.match(/^( {0,3})(`{3,}|~{3,})/)
+
+    if (fenceMatch) {
+      const marker = fenceMatch[2]
+      const markerChar = marker[0]
+
+      if (!inFencedCode) {
+        flushText()
+        inFencedCode = true
+        fenceMarker = markerChar
+        fenceLength = marker.length
+        codeBuffer += line
+        continue
+      }
+
+      codeBuffer += line
+
+      if (markerChar === fenceMarker && marker.length >= fenceLength) {
+        inFencedCode = false
+        fenceMarker = null
+        fenceLength = 0
+        flushCode()
+      }
+
+      continue
+    }
+
+    if (inFencedCode) {
+      codeBuffer += line
+    } else {
+      textBuffer += line
+    }
+  }
+
+  flushText()
+  flushCode()
+
+  return segments
+}
+
+function normalizeSafeMathDelimiters(source: string): string {
+  const protectedSegments: string[] = []
+  const protectedSource = protectCodeSegments(source)
+    .map((segment) => {
+      if (segment.isCode) {
+        const index = protectedSegments.push(segment.text) - 1
+        return createCodePlaceholder(index)
+      }
+
+      return protectInlineCodeSegments(segment.text, protectedSegments)
+    })
+    .join('')
+
+  return normalizeTextMathSegment(protectedSource).replace(
+    CODE_PLACEHOLDER_REGEX,
+    (_match, rawIndex: string) => protectedSegments[Number(rawIndex)] ?? _match
+  )
+}
 
 function extractText(node: React.ReactNode): string {
   if (typeof node === 'string') return node
@@ -426,6 +601,7 @@ export const Markdown = memo(function Markdown({
   children,
   renderLinkAnnotation
 }: MarkdownProps): React.JSX.Element {
+  const normalizedChildren = useMemo(() => normalizeSafeMathDelimiters(children), [children])
   const components = useMemo(
     () => createMarkdownComponents(renderLinkAnnotation),
     [renderLinkAnnotation]
@@ -438,7 +614,7 @@ export const Markdown = memo(function Markdown({
         rehypePlugins={rehypePluginList}
         components={components}
       >
-        {children}
+        {normalizedChildren}
       </ReactMarkdown>
     </div>
   )

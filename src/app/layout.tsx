@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { SkipToContentLink } from '@/components/accessibility/skip-to-content-link'
 import { ThemeProvider } from '@/providers/themes-provider'
 
+import 'katex/dist/katex.min.css'
 import './globals.css'
 
 import { appFontClassName } from './fonts'

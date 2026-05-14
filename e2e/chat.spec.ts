@@ -4,8 +4,8 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   CHAT_STORAGE_KEY_PREFIX,
   ChatPage,
-  SELECTED_MODEL_STORAGE_KEY,
-  getNextThemeLabel
+  getNextThemeLabel,
+  SELECTED_MODEL_STORAGE_KEY
 } from './pages/chat'
 
 const TEST_IMAGE_PATH = path.resolve(process.cwd(), 'docs/images/demo.jpg')
@@ -26,17 +26,32 @@ const TWELVE_LINE_PROMPT = Array.from({ length: 12 }, (_, index) => `Line ${inde
 const ORIGINAL_EDIT_PROMPT = 'Original editable prompt for e2e.'
 const FOLLOWUP_EDIT_PROMPT = 'Follow-up prompt that should be removed after edit.'
 const EDITED_EDIT_PROMPT = 'Edited replacement prompt for e2e.'
+const SEEDED_MATH_MARKDOWN = [
+  String.raw`Math check:
+
+\[ Y = \beta_0 + \beta_1X + \varepsilon \]
+
+Inline \( R^2 \) should render too.
+
+$$ \sum_i x_i $$
+
+Currency remains $5 and $10.`,
+  'Inline code stays raw: `\\(\\alpha\\)`.'
+].join('\n\n')
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(({ keyPrefix, selectedModelKey }) => {
-    localStorage.removeItem('THEME')
-    localStorage.removeItem(selectedModelKey)
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(keyPrefix)) {
-        localStorage.removeItem(key)
+  await page.addInitScript(
+    ({ keyPrefix, selectedModelKey }) => {
+      localStorage.removeItem('THEME')
+      localStorage.removeItem(selectedModelKey)
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith(keyPrefix)) {
+          localStorage.removeItem(key)
+        }
       }
-    }
-  }, { keyPrefix: CHAT_STORAGE_KEY_PREFIX, selectedModelKey: SELECTED_MODEL_STORAGE_KEY })
+    },
+    { keyPrefix: CHAT_STORAGE_KEY_PREFIX, selectedModelKey: SELECTED_MODEL_STORAGE_KEY }
+  )
 })
 
 async function assertTableMarkdownResponse(page: Page): Promise<void> {
@@ -129,9 +144,9 @@ test('D2b — Chat composer expands up to ten lines (Desktop)', async ({ page, i
   await chat.fillMessage(TWELVE_LINE_PROMPT)
   await expect(chat.sendButton).toBeEnabled()
 
-  await expect.poll(async () => (await getComposerTextareaMetrics(chat)).height).toBeGreaterThan(
-    initialMetrics.height
-  )
+  await expect
+    .poll(async () => (await getComposerTextareaMetrics(chat)).height)
+    .toBeGreaterThan(initialMetrics.height)
 
   const expandedMetrics = await getComposerTextareaMetrics(chat)
   expect(expandedMetrics.height).toBeLessThanOrEqual(Math.ceil(expandedMetrics.maxTenLineHeight))
@@ -182,6 +197,47 @@ test('D3 — Chat composer and render code block (Desktop)', async ({ page, isMo
   await assertCodeMarkdownResponse(page)
   await expect(chat.sendButton).toBeDisabled()
   await chat.screenshot('D3-code-response-complete.png')
+})
+
+test('D3b — Render safe chat math delimiters (Desktop)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop-only test.')
+  await page.addInitScript(
+    ({ keyPrefix, markdown }) => {
+      localStorage.setItem(
+        `${keyPrefix}chat-minimal-session`,
+        JSON.stringify([
+          {
+            id: 'seed-user-math',
+            role: 'user',
+            parts: [{ type: 'text', text: 'Show math rendering.' }]
+          },
+          {
+            id: 'seed-assistant-math',
+            role: 'assistant',
+            parts: [{ type: 'text', text: markdown }]
+          }
+        ])
+      )
+    },
+    { keyPrefix: CHAT_STORAGE_KEY_PREFIX, markdown: SEEDED_MATH_MARKDOWN }
+  )
+
+  const chat = new ChatPage(page)
+  await chat.goto()
+
+  await expect.poll(() => page.locator('.markdown-body .katex').count()).toBeGreaterThanOrEqual(3)
+  await expect
+    .poll(() => page.locator('.markdown-body .katex-display').count())
+    .toBeGreaterThanOrEqual(2)
+  await expect(page.getByText('Currency remains $5 and $10.', { exact: true })).toBeVisible()
+  await expect(
+    page.locator('.markdown-body code').filter({ hasText: '\\(\\alpha\\)' })
+  ).toBeVisible()
+
+  const markdownText = await page.locator('.markdown-body').first().textContent()
+  expect(markdownText).not.toContain('\\[')
+  expect(markdownText).not.toContain('\\]')
+  expect(markdownText).not.toContain('\\( R^2 \\)')
 })
 
 test('D4 — Upload image attachment (Desktop)', async ({ page, isMobile }) => {

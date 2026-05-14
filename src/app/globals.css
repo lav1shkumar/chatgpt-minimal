@@ -280,6 +280,17 @@
   text-decoration: underline;
 }
 
+.markdown-body .katex {
+  font-size: 1.04em;
+}
+
+.markdown-body .katex-display {
+  margin: 1rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
 @layer base {
   *,
   ::after,
